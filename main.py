@@ -1,49 +1,23 @@
-from PIL import Image
+import tifffile
 import numpy as np
-import dbf
+from dbfread import DBF
 import pandas as pd
 
-# TODO function to load images
-def load_image_as_numpy(filepath):
-    """Takes in a filepath and returns a numpy array representation of the image
-
-    Args:
-        filepath (string): filepath of image
-
-    Returns:
-        np.array: numpy array of the image
-    """
-    with Image.open(filepath) as img:
-        numpy_image = np.array(img)
-    return numpy_image
-
 # TODO define a function to get pixel wise y_train labels
-def load_labels(cdl_filepath, dbf_filepath):
+def load_labels(cdl_filepath, dbf_filepath, corn_label, soybean_label):
     # Get the CDL image
-    cdl_image = load_image_as_numpy(cdl_filepath)
+    cdl_image = tifffile.imread(cdl_filepath)
+    # Convert to 1 (corn), 5 (soybean), and 0 (other) for labels
+    cdl_image[(cdl_image != corn_label) & (cdl_image != soybean_label)] = 0
 
     # Get the dbf table as a pandas DataFrame
-    table = dbf.Table(dbf_filepath)
-    table.open()
+    table = DBF(dbf_filepath)
     df = pd.DataFrame(iter(table))
-    table.close()
 
-    label_map = {}
-    for index, row in df.iterrows():
-        if row['VALUE'] == 1:
-            label_map[row['crop_id']] = 1 # corn
-        elif row['VALUE'] == 5:
-            label_map[row['crop_id']] = 2 # soybean
-        else:
-            label_map[row['crop_id']] = 0 # other
-    
-    labels = np.vectorize(label_map.get)(cdl_image)
-
-    return labels
+    return cdl_image, df
 
 
 # TODO function to initialize the model
-
 
 # TODO function to train the model
 
@@ -52,3 +26,17 @@ def load_labels(cdl_filepath, dbf_filepath):
 # TODO function to evaluate and output
 
 
+if __name__ == "__main__":
+    # Global variables
+    north_image = "data/20130824_RE3_3A_Analytic_Champaign_north.tif"
+    cdl_image = "data/CDL_2013_Champaign_north.tif"
+    cdl_dbf = "data/CDL_2013_clip_20170525181724_1012622514.tif.vat.dbf"
+    corn_label = 1
+    soybean_label = 5
+
+
+    print("Running image classification...")
+    print("Loading training data")
+    train_x = tifffile.imread(north_image)
+    train_y, dbf_table = load_labels(cdl_image, cdl_dbf, corn_label, soybean_label)
+    print(train_y)
